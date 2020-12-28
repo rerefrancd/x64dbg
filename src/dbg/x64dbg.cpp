@@ -258,7 +258,9 @@ static void registercommands()
     dbgcmdnew("SetWatchdog", cbSetWatchdog, true); // Setup watchdog
     dbgcmdnew("SetWatchExpression", cbSetWatchExpression, true); // Set watch expression
     dbgcmdnew("SetWatchName", cbSetWatchName, true); // Set watch name
+    dbgcmdnew("SetWatchType", cbSetWatchType, true); // Set watch type
     dbgcmdnew("CheckWatchdog", cbCheckWatchdog, true); // Watchdog
+
 
     //variables
     dbgcmdnew("varnew,var", cbInstrVar, false); //make a variable arg1:name,[arg2:value]
@@ -444,6 +446,8 @@ static void registercommands()
     dbgcmdnew("flushlog", cbInstrFlushlog, false); //flush the log
     dbgcmdnew("AnimateWait", cbInstrAnimateWait, true); //Wait for the debuggee to pause.
     dbgcmdnew("dbdecompress", cbInstrDbdecompress, false); //Decompress a database.
+    dbgcmdnew("DebugFlags", cbInstrDebugFlags, false); //Set ntdll LdrpDebugFlags
+    dbgcmdnew("LabelRuntimeFunctions", cbInstrLabelRuntimeFunctions, true); //Label exception directory entries
 };
 
 bool cbCommandProvider(char* cmd, int maxlen)
@@ -570,8 +574,23 @@ static bool DbgScriptDllExec(const char* dll)
     return true;
 }
 
-static DWORD WINAPI loadDbThread(LPVOID)
+static DWORD WINAPI loadDbThread(LPVOID hEvent)
 {
+    {
+        // Take exclusive ownership over the modules to prevent a race condition with cbCreateProcess
+        EXCLUSIVE_ACQUIRE(LockModules);
+
+        // Signal the startup thread that we have the lock
+        SetEvent(hEvent);
+
+        // Load syscall indices
+        dputs(QT_TRANSLATE_NOOP("DBG", "Retrieving syscall indices..."));
+        if(SyscallInit())
+            dputs(QT_TRANSLATE_NOOP("DBG", "Syscall indices loaded!"));
+        else
+            dputs(QT_TRANSLATE_NOOP("DBG", "Failed to load syscall indices..."));
+    }
+
     // Load error codes
     if(ErrorCodeInit(StringUtils::sprintf("%s\\..\\errordb.txt", szProgramDir)))
         dputs(QT_TRANSLATE_NOOP("DBG", "Error codes database loaded!"));
@@ -617,21 +636,60 @@ static WString escape(WString cmdline)
     return cmdline;
 }
 
+#include <delayimp.h>
+
+// https://devblogs.microsoft.com/oldnewthing/20170126-00/?p=95265
+static FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli)
+{
+    if(dliNotify == dliNotePreLoadLibrary && _stricmp(pdli->szDll, "TitanEngine.dll") == 0)
+    {
+        String fullPath = szProgramDir;
+        fullPath += '\\';
+
+        switch(DbgGetDebugEngine())
+        {
+        case DebugEngineGleeBug:
+            fullPath += "GleeBug\\TitanEngine.dll";
+            break;
+        case DebugEngineStaticEngine:
+            fullPath += "StaticEngine\\TitanEngine.dll";
+            break;
+        case DebugEngineTitanEngine:
+        default:
+            return 0;
+        }
+
+        auto hModule = LoadLibraryW(StringUtils::Utf8ToUtf16(fullPath).c_str());
+        if(hModule)
+        {
+            dprintf(QT_TRANSLATE_NOOP("DBG", "Successfully loaded %s!\n"), fullPath.c_str());
+        }
+        else
+        {
+            dprintf(QT_TRANSLATE_NOOP("DBG", "Failed to load %s, falling back to regular TitanEngine.dll"), fullPath.c_str());
+        }
+        return (FARPROC)hModule;
+    }
+
+    return 0;
+}
+
+// Visual Studio 2015 Update 3 made this const per default
+// https://dev.to/yumetodo/list-of-mscver-and-mscfullver-8nd
+#if _MSC_FULL_VER >= 190024210
+const
+#endif // _MSC_FULL_VER
+PfnDliHook __pfnDliNotifyHook2 = delayHook;
+
 extern "C" DLL_EXPORT const char* _dbg_dbginit()
 {
+    if(!*szProgramDir)
+        return "GetModuleFileNameW failed!";
+
     if(!EngineCheckStructAlignment(UE_STRUCT_TITAN_ENGINE_CONTEXT, sizeof(TITAN_ENGINE_CONTEXT_t)))
         return "Invalid TITAN_ENGINE_CONTEXT_t alignment!";
 
     static_assert(sizeof(TITAN_ENGINE_CONTEXT_t) == sizeof(REGISTERCONTEXT), "Invalid REGISTERCONTEXT alignment!");
-
-    wchar_t wszDir[deflen] = L"";
-    if(!GetModuleFileNameW(hInst, wszDir, deflen))
-        return "GetModuleFileNameW failed!";
-    strcpy_s(szProgramDir, StringUtils::Utf16ToUtf8(wszDir).c_str());
-    int len = (int)strlen(szProgramDir);
-    while(szProgramDir[len] != '\\')
-        len--;
-    szProgramDir[len] = 0;
 
     strcpy_s(szDllLoaderPath, szProgramDir);
     strcat_s(szDllLoaderPath, "\\loaddll.exe");
@@ -663,7 +721,13 @@ extern "C" DLL_EXPORT const char* _dbg_dbginit()
     initDataInstMap();
 
     dputs(QT_TRANSLATE_NOOP("DBG", "Start file read thread..."));
-    CloseHandle(CreateThread(nullptr, 0, loadDbThread, nullptr, 0, nullptr));
+    {
+        auto hEvent = CreateEventW(nullptr, false, FALSE, nullptr);
+        CloseHandle(CreateThread(nullptr, 0, loadDbThread, hEvent, 0, nullptr));
+        // Wait until the loadDbThread signals it's finished
+        WaitForSingleObject(hEvent, INFINITE);
+        CloseHandle(hEvent);
+    }
 
     // Create database directory in the local debugger folder
     DbSetPath(StringUtils::sprintf("%s\\db", szProgramDir).c_str(), nullptr);

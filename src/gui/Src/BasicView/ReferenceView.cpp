@@ -13,7 +13,7 @@ ReferenceView::ReferenceView(bool sourceView, QWidget* parent) : StdSearchListVi
     mSearchStartCol = 1;
 
     // Widget container for progress
-    QWidget* progressWidget = new QWidget();
+    QWidget* progressWidget = new QWidget(this);
 
     // Create the layout for the progress bars
     QHBoxLayout* layoutProgress = new QHBoxLayout();
@@ -247,18 +247,18 @@ void ReferenceView::referenceContextMenu(QMenu* wMenu)
 
 void ReferenceView::followAddress()
 {
-    DbgCmdExecDirect(QString("disasm " + mCurList->getCellContent(mCurList->getInitialSelection(), 0)).toUtf8().constData());
+    DbgCmdExecDirect(QString("disasm " + mCurList->getCellContent(mCurList->getInitialSelection(), 0)));
 }
 
 void ReferenceView::followDumpAddress()
 {
-    DbgCmdExecDirect(QString("dump " + mCurList->getCellContent(mCurList->getInitialSelection(), 0)).toUtf8().constData());
+    DbgCmdExecDirect(QString("dump " + mCurList->getCellContent(mCurList->getInitialSelection(), 0)));
 }
 
 void ReferenceView::followApiAddress()
 {
     dsint apiValue = apiAddressFromString(mCurList->getCellContent(mCurList->getInitialSelection(), 1));
-    DbgCmdExecDirect(QString("disasm " + ToPtrString(apiValue)).toUtf8().constData());
+    DbgCmdExecDirect(QString("disasm " + ToPtrString(apiValue)));
 }
 
 void ReferenceView::followGenericAddress()
@@ -306,7 +306,7 @@ void ReferenceView::setBreakpointAt(int row, BPSetAction action)
         wCmd = "bp " + ToPtrString(wVA);
     }
 
-    DbgCmdExecDirect(wCmd.toUtf8().constData());
+    DbgCmdExecDirect(wCmd);
 }
 
 void ReferenceView::toggleBreakpoint()

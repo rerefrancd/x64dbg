@@ -92,6 +92,8 @@ struct MODINFO
     std::vector<duint> tlsCallbacks;
 #if _WIN64
     std::vector<RUNTIME_FUNCTION> runtimeFunctions; //sorted by (begin, end)
+
+    const RUNTIME_FUNCTION* findRuntimeFunction(DWORD rva) const;
 #endif // _WIN64
 
     MODEXPORT entrySymbol;
@@ -116,7 +118,7 @@ struct MODINFO
     HANDLE fileMap = nullptr;
     ULONG_PTR fileMapVA = 0;
 
-    int party;  // Party. Currently used value: 0: User, 1: System
+    MODULEPARTY party;  // Party. Currently used value: 0: User, 1: System
 
     MODINFO()
     {
@@ -138,9 +140,10 @@ struct MODINFO
     const MODEXPORT* findExport(duint rva) const;
 };
 
-bool ModLoad(duint Base, duint Size, const char* FullPath);
+ULONG64 ModRvaToOffset(ULONG64 base, PIMAGE_NT_HEADERS ntHeaders, ULONG64 rva);
+bool ModLoad(duint Base, duint Size, const char* FullPath, bool loadSymbols = true);
 bool ModUnload(duint Base);
-void ModClear();
+void ModClear(bool updateGui = true);
 MODINFO* ModInfoFromAddr(duint Address);
 bool ModNameFromAddr(duint Address, char* Name, bool Extension);
 duint ModBaseFromAddr(duint Address);
@@ -164,8 +167,8 @@ int ModPathFromName(const char* Module, char* Path, int Size);
 /// <param name="cbEnum">Enumeration function.</param>
 void ModEnum(const std::function<void(const MODINFO &)> & cbEnum);
 
-int ModGetParty(duint Address);
-void ModSetParty(duint Address, int Party);
+MODULEPARTY ModGetParty(duint Address);
+void ModSetParty(duint Address, MODULEPARTY Party);
 bool ModRelocationsFromAddr(duint Address, std::vector<MODRELOCATIONINFO> & Relocations);
 bool ModRelocationAtAddr(duint Address, MODRELOCATIONINFO* Relocation);
 bool ModRelocationsInRange(duint Address, duint Size, std::vector<MODRELOCATIONINFO> & Relocations);

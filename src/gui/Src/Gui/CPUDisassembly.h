@@ -2,19 +2,19 @@
 #define CPUDISASSEMBLY_H
 
 #include "Disassembly.h"
-#include "BreakpointMenu.h"
 
 // Needed forward declaration for parent container class
-class CPUWidget;
+class CPUSideBar;
 class GotoDialog;
 class XrefBrowseDialog;
+class CommonActions;
 
 class CPUDisassembly : public Disassembly
 {
     Q_OBJECT
 
 public:
-    explicit CPUDisassembly(CPUWidget* parent);
+    CPUDisassembly(QWidget* parent, bool isMain);
 
     // Mouse management
     void contextMenuEvent(QContextMenuEvent* event);
@@ -27,22 +27,19 @@ public:
     void setupFollowReferenceMenu(dsint wVA, QMenu* menu, bool isReferences, bool isFollowInCPU);
     void copySelectionSlot(bool copyBytes);
     void copySelectionToFileSlot(bool copyBytes);
+    void setSideBar(CPUSideBar* sideBar);
 
 signals:
     void displayReferencesWidget();
     void displaySourceManagerWidget();
     void showPatches();
     void displayLogWidget();
-    void displayGraphWidget();
     void displaySymbolsWidget();
 
 public slots:
-    void setNewOriginHereActionSlot();
     void gotoOriginSlot();
     void setLabelSlot();
     void setLabelAddressSlot();
-    void setCommentSlot();
-    void setBookmarkSlot();
     void toggleFunctionSlot();
     void toggleArgumentSlot();
     void addLoopSlot();
@@ -105,12 +102,9 @@ public slots:
     void removeAnalysisModuleSlot();
     void setEncodeTypeSlot();
     void setEncodeTypeRangeSlot();
-    void graphSlot();
     void analyzeModuleSlot();
-    void createThreadSlot();
     void copyTokenTextSlot();
     void copyTokenValueSlot();
-    void followInMemoryMapSlot();
     void downloadCurrentSymbolsSlot();
 
 protected:
@@ -125,7 +119,7 @@ private:
 
     // Menus
     QMenu* mHwSlotSelectMenu;
-    QMenu* mPluginMenu;
+    QMenu* mPluginMenu = nullptr;
 
     // Actions
     QAction* mReferenceSelectedAddressAction;
@@ -164,12 +158,12 @@ private:
     XrefBrowseDialog* mXrefDlg = nullptr;
 
     // Parent CPU window
-    CPUWidget* mParentCPUWindow;
+    CPUSideBar* mSideBar = nullptr;
 
     MenuBuilder* mMenuBuilder;
     MenuBuilder* mHighlightMenuBuilder;
     bool mHighlightContextMenu = false;
-    BreakpointMenu* mBreakpointMenu;
+    CommonActions* mCommonActions;
 };
 
 #endif // CPUDISASSEMBLY_H

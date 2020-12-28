@@ -28,11 +28,11 @@ QBeaEngine::~QBeaEngine()
  *
  * @return      Return the RVA (Relative to the data pointer) of the nth instruction before the instruction pointed by ip
  */
-ulong QBeaEngine::DisassembleBack(byte_t* data, duint base, duint size, duint ip, int n)
+ulong QBeaEngine::DisassembleBack(const byte_t* data, duint base, duint size, duint ip, int n)
 {
     int i;
     uint abuf[128], addr, back, cmdsize;
-    unsigned char* pdata;
+    const unsigned char* pdata;
 
     // Reset Disasm Structure
     Zydis cp;
@@ -124,11 +124,11 @@ ulong QBeaEngine::DisassembleBack(byte_t* data, duint base, duint size, duint ip
  *
  * @return      Return the RVA (Relative to the data pointer) of the nth instruction after the instruction pointed by ip
  */
-ulong QBeaEngine::DisassembleNext(byte_t* data, duint base, duint size, duint ip, int n)
+ulong QBeaEngine::DisassembleNext(const byte_t* data, duint base, duint size, duint ip, int n)
 {
     int i;
     uint cmdsize;
-    unsigned char* pdata;
+    const unsigned char* pdata;
 
     // Reset Disasm Structure
     Zydis cp;
@@ -181,7 +181,7 @@ ulong QBeaEngine::DisassembleNext(byte_t* data, duint base, duint size, duint ip
  *
  * @return      Return the disassembled instruction
  */
-Instruction_t QBeaEngine::DisassembleAt(byte_t* data, duint size, duint origBase, duint origInstRVA, bool datainstr)
+Instruction_t QBeaEngine::DisassembleAt(const byte_t* data, duint size, duint origBase, duint origInstRVA, bool datainstr)
 {
     if(datainstr)
     {
@@ -207,7 +207,7 @@ Instruction_t QBeaEngine::DisassembleAt(byte_t* data, duint size, duint origBase
             branchType = Instruction_t::Unconditional;
         else if(cp.IsBranchType(Zydis::BTCall))
             branchType = Instruction_t::Call;
-        else if(cp.IsBranchType(Zydis::BTCondJmp))
+        else if(cp.IsBranchType(Zydis::BTCondJmp) || cp.IsBranchType(Zydis::BTLoop))
             branchType = Instruction_t::Conditional;
     }
     else
@@ -311,7 +311,7 @@ Instruction_t QBeaEngine::DisassembleAt(byte_t* data, duint size, duint origBase
     return wInst;
 }
 
-Instruction_t QBeaEngine::DecodeDataAt(byte_t* data, duint size, duint origBase, duint origInstRVA, ENCODETYPE type)
+Instruction_t QBeaEngine::DecodeDataAt(const byte_t* data, duint size, duint origBase, duint origInstRVA, ENCODETYPE type)
 {
     //tokenize
     ZydisTokenizer::InstructionToken cap;
@@ -387,9 +387,9 @@ void formatOpcodeString(const Instruction_t & inst, RichTextPainter::List & list
     RichTextPainter::CustomRichText_t curByte;
     size_t size = inst.dump.size();
     assert(list.empty()); //List must be empty before use
-    curByte.highlightWidth = 1;
+    curByte.underlineWidth = 1;
     curByte.flags = RichTextPainter::FlagAll;
-    curByte.highlight = false;
+    curByte.underline = false;
     list.reserve(size + 5);
     realBytes.reserve(size + 5);
     for(size_t i = 0; i < size; i++)

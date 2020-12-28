@@ -70,14 +70,7 @@ int main(int argc, char* argv[])
     qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     MyApplication application(argc, argv);
-    QFile f(QString("%1/style.css").arg(QCoreApplication::applicationDirPath()));
-    if(f.open(QFile::ReadOnly | QFile::Text))
-    {
-        QTextStream in(&f);
-        auto style = in.readAll();
-        f.close();
-        application.setStyleSheet(style);
-    }
+    MainWindow::loadSelectedStyle(true);
 #if QT_VERSION < QT_VERSION_CHECK(5,0,0)
     QAbstractEventDispatcher::instance(application.thread())->setEventFilter(MyApplication::globalEventFilter);
 #else
@@ -85,7 +78,7 @@ int main(int argc, char* argv[])
     application.installNativeEventFilter(eventFilter);
 #endif
 
-    // Get the hidden language setting (for testers)
+    // Get the language setting
     if(!BridgeSettingGet("Engine", "Language", currentLocale) || !isValidLocale(currentLocale))
     {
         QStringList uiLanguages = QLocale::system().uiLanguages();
@@ -113,6 +106,11 @@ int main(int argc, char* argv[])
     // load config file + set config font
     mConfiguration = new Configuration;
     application.setFont(ConfigFont("Application"));
+
+    // Set configured link color
+    QPalette appPalette = application.palette();
+    appPalette.setColor(QPalette::Link, ConfigColor("LinkColor"));
+    application.setPalette(appPalette);
 
     // Register custom data types
     qRegisterMetaType<dsint>("dsint");

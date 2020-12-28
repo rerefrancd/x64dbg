@@ -8,6 +8,7 @@
 #include <QFont>
 #include "Imports.h"
 
+// TODO: declare AppearanceDialog and SettingsDialog entries here, so that you only have to do it in once place
 #define Config() (Configuration::instance())
 #define ConfigColor(x) (Config()->getColor(x))
 #define ConfigBool(x,y) (Config()->getBool(x,y))
@@ -32,7 +33,7 @@ public:
         bool GlobalShortcut;
 
         Shortcut(QString name = QString(), QString hotkey = QString(), bool global = false)
-            : Name(name), Hotkey(hotkey), GlobalShortcut(global) { }
+            : Name(name), Hotkey(hotkey, QKeySequence::PortableText), GlobalShortcut(global) { }
 
         Shortcut(std::initializer_list<QString> names, QString hotkey = QString(), bool global = false)
             : Shortcut(QStringList(names).join(" -> "), hotkey, global) { }
@@ -111,7 +112,6 @@ signals:
     void shortcutsUpdated();
     void tokenizerConfigUpdated();
     void disableAutoCompleteUpdated();
-    void asciiAddressDumpModeUpdated();
 
 private:
     QColor colorFromConfig(const QString & id);

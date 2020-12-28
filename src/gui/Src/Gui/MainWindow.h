@@ -29,11 +29,10 @@ class MainWindowCloseThread;
 class TimeWastedCounter;
 class NotesManager;
 class SettingsDialog;
-class DisassemblerGraphView;
 class SimpleTraceDialog;
 class MRUList;
 class UpdateChecker;
-class TraceBrowser;
+class TraceWidget;
 
 namespace Ui
 {
@@ -55,6 +54,8 @@ public:
     void loadTabDefaultOrder();
     void loadTabSavedOrder();
     void clearTabWidget();
+
+    static void loadSelectedStyle(bool reloadStyleCss = false);
 
 public slots:
     void saveWindowSettings();
@@ -82,6 +83,7 @@ public slots:
     void execTRWord();
     void execTRNone();
     void displayCpuWidget();
+    void displayCpuWidgetShowCpu();
     void displaySymbolWidget();
     void displaySourceViewWidget();
     void displayReferencesWidget();
@@ -156,6 +158,7 @@ public slots:
     void customizeMenu();
     void addFavouriteItem(int type, const QString & name, const QString & description);
     void setFavouriteItemShortcut(int type, const QString & name, const QString & shortcut);
+    void themeTriggeredSlot();
 
 private:
     Ui::MainWindow* ui;
@@ -177,12 +180,12 @@ private:
     CalculatorDialog* mCalculatorDialog;
     HandlesView* mHandlesView;
     NotesManager* mNotesManager;
-    DisassemblerGraphView* mGraphView;
-    TraceBrowser* mTraceBrowser;
+    TraceWidget* mTraceWidget;
     SimpleTraceDialog* mSimpleTraceDialog;
     UpdateChecker* mUpdateChecker;
     DebugStatusLabel* mStatusLabel;
     LogStatusLabel* mLastLogLabel;
+    QToolBar* mFavouriteToolbar;
 
     TimeWastedCounter* mTimeWastedCounter;
 
@@ -195,6 +198,7 @@ private:
 
     void updateMRUMenu();
     void setupLanguagesMenu();
+    void setupThemesMenu();
     void onMenuCustomized();
     void setupMenuCustomization();
     QAction* makeCommandAction(QAction* action, const QString & command);
@@ -271,6 +275,7 @@ protected:
 
 private slots:
     void setupLanguagesMenu2();
+    void updateStyle();
 
     void on_actionFaq_triggered();
     void on_actionReloadStylesheet_triggered();
@@ -280,6 +285,7 @@ private slots:
     void on_actionRestartAdmin_triggered();
     void on_actionPlugins_triggered();
     void on_actionCheckUpdates_triggered();
+    void on_actionDefaultTheme_triggered();
 };
 
 #endif // MAINWINDOW_H

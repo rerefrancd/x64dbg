@@ -8,6 +8,7 @@
 class TraceFileReader;
 class BreakpointMenu;
 class MRUList;
+class CommonActions;
 
 class TraceBrowser : public AbstractTableView
 {
@@ -28,6 +29,9 @@ public:
     duint getSelectionStart();
     duint getSelectionEnd();
 
+    bool isFileOpened() const;
+    TraceFileReader* getTraceFile() { return mTraceFile; }
+
 private:
     enum TableColumnIndex
     {
@@ -42,7 +46,6 @@ private:
     void setupRightClickContextMenu();
     void makeVisible(duint index);
     QString getAddrText(dsint cur_addr, char label[MAX_LABEL_SIZE], bool getLabel);
-    QString getIndexText(duint index) const;
     RichTextPainter::List getRichBytes(const Instruction_t & instr) const;
     void pushSelectionInto(bool copyBytes, QTextStream & stream, QTextStream* htmlStream = nullptr);
     void copySelectionSlot(bool copyBytes);
@@ -58,6 +61,7 @@ private:
     ZydisTokenizer::InstructionToken registersTokens(unsigned long long atIndex);
     VaHistory mHistory;
     MenuBuilder* mMenuBuilder;
+    CommonActions* mCommonActions;
     bool mRvaDisplayEnabled;
     duint mRvaDisplayBase;
 
@@ -73,9 +77,9 @@ private:
     bool mHighlightingMode;
     bool mPermanentHighlightingMode;
     bool mAutoDisassemblyFollowSelection;
+    bool mShowMnemonicBrief;
 
     TraceFileReader* mTraceFile;
-    QBeaEngine* mDisasm;
     BreakpointMenu* mBreakpointMenu;
     MRUList* mMRUList;
     QString mFileName;
@@ -106,6 +110,7 @@ private:
     QColor mSelectedAddressColor;
     QColor mAddressBackgroundColor;
     QColor mAddressColor;
+    QColor mTracedSelectedAddressBackgroundColor;
 
     QColor mAutoCommentColor;
     QColor mAutoCommentBackgroundColor;
@@ -113,8 +118,36 @@ private:
     QColor mCommentBackgroundColor;
     QColor mDisassemblyRelocationUnderlineColor;
 
+    QColor mMnemonicBriefColor;
+    QColor mMnemonicBriefBackgroundColor;
+
+    QColor mConditionalJumpLineTrueColor;
+
+    QColor mLoopColor;
+    QColor mFunctionColor;
+
+    QPen mLoopPen;
+    QPen mFunctionPen;
+    QPen mConditionalTruePen;
+
+    // Function Graphic
+
+    enum Function_t
+    {
+        Function_none,
+        Function_single,
+        Function_start,
+        Function_middle,
+        Function_loop_entry,
+        Function_end
+    };
+
+    int paintFunctionGraphic(QPainter* painter, int x, int y, Function_t funcType, bool loop);
+
 signals:
     void displayReferencesWidget();
+    void displayLogWidget();
+    void selectionChanged(unsigned long long selection);
 
 public slots:
     void openFileSlot();
@@ -124,14 +157,14 @@ public slots:
     void closeDeleteSlot();
     void parseFinishedSlot();
     void tokenizerConfigUpdatedSlot();
+    void onSelectionChanged(unsigned long long selection);
 
     void gotoSlot();
     void gotoPreviousSlot();
     void gotoNextSlot();
-    void followDisassemblySlot();
     void enableHighlightingModeSlot();
-    void setLabelSlot();
-    void setCommentSlot();
+    void mnemonicBriefSlot();
+    void mnemonicHelpSlot();
     void copyDisassemblySlot();
     void copyCipSlot();
     void copyIndexSlot();
@@ -141,11 +174,12 @@ public slots:
     void copySelectionToFileNoBytesSlot();
     void copyFileOffsetSlot();
     void copyRvaSlot();
+    void exportSlot();
 
     void searchConstantSlot();
     void searchMemRefSlot();
 
-    void updateSlot(); //debug
+    void updateSlot();
 
     void toggleAutoDisassemblyFollowSelectionSlot();
 };

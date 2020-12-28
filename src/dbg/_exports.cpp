@@ -354,13 +354,29 @@ extern "C" DLL_EXPORT bool _dbg_addrinfoget(duint addr, SEGMENTREG segment, BRID
             Zydis cp;
             auto getregs = !bOnlyCipAutoComments || addr == lastContext.cip;
             disasmget(cp, addr, &instr, getregs);
-            if(!cp.IsNop())
+            // Some nop variants have 'operands' that should be ignored
+            if(cp.Success() && !cp.IsNop())
             {
                 //Ignore register values when not on CIP and OnlyCipAutoComments is enabled: https://github.com/x64dbg/x64dbg/issues/1383
                 if(!getregs)
                 {
                     for(int i = 0; i < instr.argcount; i++)
                         instr.arg[i].value = instr.arg[i].constant;
+                }
+
+                if(addr == lastContext.cip && (cp.GetId() == ZYDIS_MNEMONIC_SYSCALL || (cp.GetId() == ZYDIS_MNEMONIC_INT && cp[0].imm.value.u == 0x2e)))
+                {
+                    auto syscallName = SyscallToName(lastContext.cax);
+                    if(!syscallName.empty())
+                    {
+                        if(!comment.empty())
+                        {
+                            comment.push_back(',');
+                            comment.push_back(' ');
+                        }
+                        comment.append(syscallName);
+                        retval = true;
+                    }
                 }
 
                 for(int i = 0; i < instr.argcount; i++)
@@ -836,11 +852,7 @@ extern "C" DLL_EXPORT duint _dbg_getbranchdestination(duint addr)
         });
         if(cp.OpCount() && cp[0].type == ZYDIS_OPERAND_TYPE_MEMORY)
         {
-#ifdef _WIN64
-            auto const tebseg = ZYDIS_REGISTER_GS;
-#else
-            auto const tebseg = ZYDIS_REGISTER_FS;
-#endif //_WIN64
+            auto const tebseg = ArchValue(ZYDIS_REGISTER_FS, ZYDIS_REGISTER_GS);
             if(cp[0].mem.segment == tebseg)
                 opValue += duint(GetTEBLocation(hActiveThread));
             if(MemRead(opValue, &opValue, sizeof(opValue)))
@@ -880,6 +892,7 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
         case DBG_WIN_EVENT_GLOBAL:
         case DBG_RELEASE_ENCODE_TYPE_BUFFER:
         case DBG_GET_TIME_WASTED_COUNTER:
+        case DBG_GET_DEBUG_ENGINE:
             break;
         //the rest is unsafe -> throw an exception when people try to call them
         default:
@@ -1487,6 +1500,21 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
     {
         auto symbolptr = (const SYMBOLPTR*)param1;
         ((const SymbolInfoGui*)symbolptr->symbol)->convertToGuiSymbol(symbolptr->modbase, (SYMBOLINFO*)param2);
+    }
+    break;
+
+    case DBG_GET_DEBUG_ENGINE:
+    {
+        static auto debugEngine = []
+        {
+            duint setting = DebugEngineTitanEngine;
+            if(!BridgeSettingGetUint("Engine", "DebugEngine", &setting))
+            {
+                BridgeSettingSetUint("Engine", "DebugEngine", setting);
+            }
+            return (DEBUG_ENGINE)setting;
+        }();
+        return debugEngine;
     }
     break;
     }

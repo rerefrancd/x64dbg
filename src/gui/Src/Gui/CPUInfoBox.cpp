@@ -5,7 +5,7 @@
 #include "Bridge.h"
 #include "QBeaEngine.h"
 
-CPUInfoBox::CPUInfoBox(StdTable* parent) : StdTable(parent)
+CPUInfoBox::CPUInfoBox(QWidget* parent) : StdTable(parent)
 {
     setWindowTitle("InfoBox");
     enableMultiSelection(false);
@@ -18,7 +18,6 @@ CPUInfoBox::CPUInfoBox(StdTable* parent) : StdTable(parent)
     setCellContent(3, 0, "");
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    horizontalScrollBar()->setStyleSheet(ConfigHScrollBarStyle());
 
     int height = getHeight();
     setMinimumHeight(height);
@@ -189,7 +188,7 @@ void CPUInfoBox::disasmSelectionChanged(dsint parVA)
 
     for(int i = 0, j = start; i < instr.argcount && j < 2; i++)
     {
-        DISASM_ARG arg = instr.arg[i];
+        const DISASM_ARG & arg = instr.arg[i];
         QString argMnemonic = QString(arg.mnemonic);
         if(bUpper)
             argMnemonic = argMnemonic.toUpper();
@@ -543,9 +542,9 @@ void CPUInfoBox::followActionSlot()
 {
     QAction* action = qobject_cast<QAction*>(sender());
     if(action && action->objectName().startsWith("DUMP|"))
-        DbgCmdExec(QString("dump \"%1\"").arg(action->objectName().mid(5)).toUtf8().constData());
+        DbgCmdExec(QString("dump \"%1\"").arg(action->objectName().mid(5)));
     else if(action && action->objectName().startsWith("WATCH|"))
-        DbgCmdExec(QString("AddWatch \"[%1]\"").arg(action->objectName().mid(6)).toUtf8().constData());
+        DbgCmdExec(QString("AddWatch \"[%1]\"").arg(action->objectName().mid(6)));
 }
 
 void CPUInfoBox::modifySlot()
@@ -573,7 +572,10 @@ void CPUInfoBox::findXReferencesSlot()
         return;
     if(!mXrefDlg)
         mXrefDlg = new XrefBrowseDialog(this);
-    mXrefDlg->setup(curAddr);
+    mXrefDlg->setup(curAddr, [](duint address)
+    {
+        DbgCmdExec(QString("disasm %1").arg(ToPtrString(address)));
+    });
     mXrefDlg->showNormal();
 }
 
@@ -769,7 +771,7 @@ int CPUInfoBox::followInDump(dsint wVA)
     // Last line of infoBox => Current Address(EIP) in disassembly
     if(tableOffset == 2)
     {
-        DbgCmdExec(QString("dump %1").arg(ToPtrString(wVA)).toUtf8().constData());
+        DbgCmdExec(QString("dump %1").arg(ToPtrString(wVA)));
         return 0;
     }
 
@@ -778,7 +780,7 @@ int CPUInfoBox::followInDump(dsint wVA)
 
     if(instr.type == instr_branch && cellContent.contains("Jump"))
     {
-        DbgCmdExec(QString("dump %1").arg(ToPtrString(instr.arg[0].value)).toUtf8().constData());
+        DbgCmdExec(QString("dump %1").arg(ToPtrString(instr.arg[0].value)));
         return 0;
     }
 
@@ -792,7 +794,7 @@ int CPUInfoBox::followInDump(dsint wVA)
             {
                 if(cellContent.contains(arg.mnemonic))
                 {
-                    DbgCmdExec(QString("dump %1").arg(ToPtrString(arg.value)).toUtf8().constData());
+                    DbgCmdExec(QString("dump %1").arg(ToPtrString(arg.value)));
                     return 0;
                 }
             }
